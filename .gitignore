@@ -1,0 +1,8 @@
+# VOICEPEAK binary (commercial, do not commit)
+installer/
+
+# 音声出力
+output/
+
+# OS
+.DS_Store

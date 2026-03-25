@@ -1,0 +1,15 @@
+services:
+  voicepeak-build:
+    build:
+      context: .
+      dockerfile: Dockerfile.build
+    container_name: voicepeak-build
+    ports:
+      - "5901:5901"
+    volumes:
+      # インストーラをホストから渡す用
+      - ./installer:/opt/voicepeak-installer
+    # machine-idを維持するためホスト名を固定
+    hostname: voicepeak-build
+    # SHM拡張 (GUIアプリ安定動作のため)
+    shm_size: "1g"
