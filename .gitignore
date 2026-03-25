@@ -4,5 +4,8 @@ installer/
 # 音声出力
 output/
 
+# IDE
+.idea/
+
 # OS
 .DS_Store
