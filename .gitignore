@@ -1,6 +1,7 @@
 # VOICEPEAK binary (commercial, do not commit)
 installer/*
 !installer/.gitkeep
+!installer/setup.sh
 
 # 音声出力
 output/*
