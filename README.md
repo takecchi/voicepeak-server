@@ -95,6 +95,8 @@ docker run --rm --platform linux/amd64 \
 
 #### APIサーバー
 
+事前にビルド済みの `voicepeak-api` イメージが必要 (Step 2 参照)。
+
 ```bash
 docker compose up
 ```
@@ -102,11 +104,14 @@ docker compose up
 別ターミナルで:
 
 ```bash
+# ヘルスチェック
+curl http://localhost:3000/voicepeak/health
+
 # ナレーター一覧
 curl http://localhost:3000/voicepeak/narrators
 
 # ナレーターの感情パラメータ一覧
-curl http://localhost:3000/voicepeak/narrators/Japanese%20Male%20Child/emotions
+curl http://localhost:3000/voicepeak/narrators/Kasane%20Teto/emotions
 
 # 音声合成
 curl -X POST http://localhost:3000/voicepeak/speech \

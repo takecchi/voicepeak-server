@@ -1,8 +1,6 @@
 services:
   voicepeak-api:
-    build:
-      context: .
-      dockerfile: Dockerfile.api
+    image: voicepeak-api
     container_name: voicepeak-api
     ports:
       - "3000:3000"
