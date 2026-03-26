@@ -1,13 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { execFile } from 'child_process';
-import { promisify } from 'util';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
+import { VoicepeakCli } from './voicepeak-cli';
 
-const execFileAsync = promisify(execFile);
-
-const VOICEPEAK_PATH = process.env.VOICEPEAK_PATH || '/opt/voicepeak/voicepeak';
 const MAX_TEXT_LENGTH = 140;
 
 export interface SpeechOptions {
@@ -23,8 +19,19 @@ export class VoicepeakService {
   private readonly logger = new Logger(VoicepeakService.name);
   private queue: Promise<void> = Promise.resolve();
 
+  constructor(private readonly cli: VoicepeakCli) {}
+
   async listNarrators(): Promise<string[]> {
-    const { stdout } = await execFileAsync(VOICEPEAK_PATH, ['--list-narrator']);
+    const { stdout } = await this.cli.exec(['--list-narrator']);
+    return this.parseLines(stdout);
+  }
+
+  async listEmotions(narrator: string): Promise<string[]> {
+    const { stdout } = await this.cli.exec(['--list-emotion', narrator]);
+    return this.parseLines(stdout);
+  }
+
+  parseLines(stdout: string): string[] {
     return stdout
       .split('\n')
       .map((line) => line.trim())
@@ -46,29 +53,25 @@ export class VoicepeakService {
 
     try {
       const chunks = this.splitText(options.text);
-      const wavFiles: string[] = [];
+      const wavBuffers: Buffer[] = [];
 
       for (let i = 0; i < chunks.length; i++) {
         const outFile = path.join(tmpDir, `chunk_${i}.wav`);
         await this.runVoicepeak(chunks[i], outFile, options);
-        wavFiles.push(outFile);
+        wavBuffers.push(await fs.readFile(outFile));
       }
 
-      if (wavFiles.length === 1) {
-        return await fs.readFile(wavFiles[0]);
+      if (wavBuffers.length === 1) {
+        return wavBuffers[0];
       }
 
-      return await this.concatenateWav(wavFiles);
+      return this.concatenateWav(wavBuffers);
     } finally {
       await fs.rm(tmpDir, { recursive: true, force: true });
     }
   }
 
-  private async runVoicepeak(
-    text: string,
-    outFile: string,
-    options: SpeechOptions,
-  ): Promise<void> {
+  buildArgs(text: string, outFile: string, options: SpeechOptions): string[] {
     const args = ['-s', text, '-o', outFile];
 
     if (options.narrator) {
@@ -87,10 +90,18 @@ export class VoicepeakService {
       args.push('--pitch', String(options.pitch));
     }
 
+    return args;
+  }
+
+  private async runVoicepeak(
+    text: string,
+    outFile: string,
+    options: SpeechOptions,
+  ): Promise<void> {
+    const args = this.buildArgs(text, outFile, options);
+
     this.logger.log(`Running voicepeak: ${args.join(' ')}`);
-    const { stderr } = await execFileAsync(VOICEPEAK_PATH, args, {
-      timeout: 120_000,
-    });
+    const { stderr } = await this.cli.exec(args);
     if (stderr) {
       this.logger.warn(`voicepeak stderr: ${stderr}`);
     }
@@ -131,19 +142,18 @@ export class VoicepeakService {
     return chunks;
   }
 
-  private async concatenateWav(wavFiles: string[]): Promise<Buffer> {
-    const buffers: Buffer[] = [];
+  concatenateWav(wavFiles: Buffer[]): Buffer {
     let header: Buffer | null = null;
     let totalDataSize = 0;
+    const dataBuffers: Buffer[] = [];
 
-    for (const file of wavFiles) {
-      const buf = await fs.readFile(file);
+    for (const buf of wavFiles) {
       const dataOffset = 44;
       if (!header) {
         header = Buffer.from(buf.subarray(0, dataOffset));
       }
       const data = buf.subarray(dataOffset);
-      buffers.push(data);
+      dataBuffers.push(data);
       totalDataSize += data.length;
     }
 
@@ -160,7 +170,7 @@ export class VoicepeakService {
     result.writeUInt32LE(totalDataSize, 40);
 
     let offset = 44;
-    for (const data of buffers) {
+    for (const data of dataBuffers) {
       data.copy(result, offset);
       offset += data.length;
     }

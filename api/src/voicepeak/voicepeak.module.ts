@@ -1,9 +1,10 @@
 import { Module } from '@nestjs/common';
-import { VoicepeakController } from './voicepeak.controller.js';
-import { VoicepeakService } from './voicepeak.service.js';
+import { VoicepeakController } from './voicepeak.controller';
+import { VoicepeakService } from './voicepeak.service';
+import { VoicepeakCli } from './voicepeak-cli';
 
 @Module({
   controllers: [VoicepeakController],
-  providers: [VoicepeakService],
+  providers: [VoicepeakService, VoicepeakCli],
 })
 export class VoicepeakModule {}

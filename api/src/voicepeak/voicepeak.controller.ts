@@ -1,52 +1,78 @@
+import { Controller, Get, Param, Post, Body, Res } from '@nestjs/common';
 import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Res,
-  HttpException,
-  HttpStatus,
-} from '@nestjs/common';
+  ApiTags,
+  ApiOperation,
+  ApiOkResponse,
+  ApiCreatedResponse,
+  ApiBadRequestResponse,
+  ApiProduces,
+  ApiParam,
+} from '@nestjs/swagger';
 import type { Response } from 'express';
-import { VoicepeakService, SpeechOptions } from './voicepeak.service.js';
+import { VoicepeakService } from './voicepeak.service';
+import { SynthesizeSpeechRequest } from './dto/synthesize-speech.dto';
+import { NarratorList } from './dto/narrator-list.dto';
+import { EmotionList } from './dto/emotion-list.dto';
+import { Health } from './dto/health.dto';
 
-class SpeechDto {
-  text: string;
-  narrator?: string;
-  emotion?: Record<string, number>;
-  speed?: number;
-  pitch?: number;
-}
-
-@Controller('api')
+@ApiTags('voicepeak')
+@Controller('voicepeak')
 export class VoicepeakController {
   constructor(private readonly voicepeakService: VoicepeakService) {}
 
-  @Get('narrators')
-  async listNarrators() {
-    return { narrators: await this.voicepeakService.listNarrators() };
-  }
-
   @Get('health')
-  health() {
+  @ApiOperation({ operationId: 'getHealth', summary: 'ヘルスチェック' })
+  @ApiOkResponse({ type: Health })
+  health(): Health {
     return { status: 'ok' };
   }
 
+  @Get('narrators')
+  @ApiOperation({
+    operationId: 'getNarrators',
+    summary: 'ナレーター一覧を取得',
+  })
+  @ApiOkResponse({ type: NarratorList })
+  async listNarrators(): Promise<NarratorList> {
+    return { narrators: await this.voicepeakService.listNarrators() };
+  }
+
+  @Get('narrators/:narrator_name/emotions')
+  @ApiOperation({
+    operationId: 'getEmotions',
+    summary: '指定ナレーターの感情パラメータ一覧を取得',
+  })
+  @ApiParam({
+    name: 'narrator_name',
+    type: String,
+    description: 'ナレーター名',
+  })
+  @ApiOkResponse({ type: EmotionList })
+  async listEmotions(
+    @Param('narrator_name') narratorName: string,
+  ): Promise<EmotionList> {
+    return { emotions: await this.voicepeakService.listEmotions(narratorName) };
+  }
+
   @Post('speech')
-  async synthesize(@Body() dto: SpeechDto, @Res() res: Response) {
-    if (!dto.text || dto.text.trim().length === 0) {
-      throw new HttpException('text is required', HttpStatus.BAD_REQUEST);
-    }
-
-    const options: SpeechOptions = {
-      text: dto.text,
-      narrator: dto.narrator,
-      emotion: dto.emotion,
-      speed: dto.speed,
-      pitch: dto.pitch,
-    };
-
-    const wav = await this.voicepeakService.synthesize(options);
+  @ApiOperation({
+    operationId: 'synthesizeSpeech',
+    summary: 'テキストから音声を合成',
+  })
+  @ApiCreatedResponse({ description: '音声合成されたWAVファイル' })
+  @ApiBadRequestResponse({ description: '不正なリクエスト' })
+  @ApiProduces('audio/wav')
+  async synthesize(
+    @Body() request: SynthesizeSpeechRequest,
+    @Res() res: Response,
+  ) {
+    const wav = await this.voicepeakService.synthesize({
+      text: request.text,
+      narrator: request.narrator,
+      emotion: request.emotion,
+      speed: request.speed,
+      pitch: request.pitch,
+    });
 
     res.set({
       'Content-Type': 'audio/wav',

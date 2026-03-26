@@ -103,10 +103,13 @@ docker compose up
 
 ```bash
 # ナレーター一覧
-curl http://localhost:3000/api/narrators
+curl http://localhost:3000/voicepeak/narrators
+
+# ナレーターの感情パラメータ一覧
+curl http://localhost:3000/voicepeak/narrators/Japanese%20Male%20Child/emotions
 
 # 音声合成
-curl -X POST http://localhost:3000/api/speech \
+curl -X POST http://localhost:3000/voicepeak/speech \
   -H "Content-Type: application/json" \
   -d '{"text": "こんにちは"}' \
   --output test.wav
@@ -116,11 +119,12 @@ curl -X POST http://localhost:3000/api/speech \
 
 | メソッド | パス | 説明 |
 |---------|------|------|
-| GET | `/api/health` | ヘルスチェック |
-| GET | `/api/narrators` | ナレーター一覧 |
-| POST | `/api/speech` | 音声合成 (WAVを返す) |
+| GET | `/voicepeak/health` | ヘルスチェック |
+| GET | `/voicepeak/narrators` | ナレーター一覧 |
+| GET | `/voicepeak/narrators/:narrator_name/emotions` | 指定ナレーターの感情パラメータ一覧 |
+| POST | `/voicepeak/speech` | 音声合成 (WAVを返す) |
 
-### POST /api/speech リクエストボディ
+### POST /voicepeak/speech リクエストボディ
 
 | パラメータ | 型 | 必須 | 説明 |
 |-----------|-----|------|------|
