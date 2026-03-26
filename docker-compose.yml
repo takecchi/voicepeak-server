@@ -1,0 +1,10 @@
+services:
+  voicepeak-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: voicepeak-api
+    ports:
+      - "3000:3000"
+    platform: linux/amd64
+    shm_size: "1g"

@@ -1,0 +1,37 @@
+{
+  "name": "voicepeak-server",
+  "version": "1.0.0",
+  "packageManager": "npm@11.6.4",
+  "description": "VOICEPEAK API",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "workspaces": [
+    "api"
+  ],
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,css,scss,html,md}": [
+      "prettier --write"
+    ]
+  },
+  "scripts": {
+    "format": "prettier --write \"**/*.{js,jsx,mjs,ts,tsx,css,scss,html,json}\"",
+    "prepare": "husky",
+    "lint": "npm run lint -w api",
+    "lint-staged": "lint-staged"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  },
+  "devDependencies": {
+    "husky": "9.1.7",
+    "lint-staged": "16.2.7",
+    "prettier": "3.7.4"
+  }
+}

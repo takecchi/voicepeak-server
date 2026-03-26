@@ -1,0 +1,22 @@
+ARG BASE_IMAGE=voicepeak-base
+FROM ${BASE_IMAGE}
+
+# Node.js 20 LTS インストール
+RUN apt-get update && apt-get install -y curl \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# VOICEPEAKバイナリ配置
+COPY installer/Voicepeak /opt/voicepeak
+
+# APIサーバーセットアップ
+WORKDIR /app
+COPY api/package*.json ./
+RUN npm ci --omit=dev
+COPY api/dist ./dist
+
+ENV PORT=3000
+EXPOSE 3000
+
+CMD ["node", "dist/main.js"]
