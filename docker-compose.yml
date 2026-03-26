@@ -3,6 +3,6 @@ services:
     image: voicepeak-api
     container_name: voicepeak-api
     ports:
-      - "8080:8080"
+      - "8181:8181"
     platform: linux/amd64
     shm_size: "1g"

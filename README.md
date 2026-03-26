@@ -33,7 +33,7 @@ DOCKER_BUILDKIT=0 docker build -t voicepeak .             # CLI用
 DOCKER_BUILDKIT=0 docker build -f Dockerfile.api -t voicepeak-api .  # APIサーバー用
 
 # 5. 起動
-docker compose up  # APIサーバー (http://localhost:8080)
+docker compose up  # APIサーバー (http://localhost:8181)
 ```
 
 ## セットアップ詳細
@@ -106,22 +106,22 @@ docker run --rm --platform linux/amd64 \
 docker compose up
 ```
 
-Swagger UI: http://localhost:8080/api
+Swagger UI: http://localhost:8181/api
 
 別ターミナルで:
 
 ```bash
 # ヘルスチェック
-curl http://localhost:8080/voicepeak/health
+curl http://localhost:8181/voicepeak/health
 
 # ナレーター一覧
-curl http://localhost:8080/voicepeak/narrators
+curl http://localhost:8181/voicepeak/narrators
 
 # ナレーターの感情パラメータ一覧
-curl http://localhost:8080/voicepeak/narrators/Kasane%20Teto/emotions
+curl http://localhost:8181/voicepeak/narrators/Kasane%20Teto/emotions
 
 # 音声合成
-curl -X POST http://localhost:8080/voicepeak/speech \
+curl -X POST http://localhost:8181/voicepeak/speech \
   -H "Content-Type: application/json" \
   -d '{"text": "こんにちは"}' \
   --output test.wav

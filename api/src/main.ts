@@ -19,7 +19,7 @@ async function bootstrap() {
     });
   }
   app.useGlobalPipes(globalValidationPipe);
-  await app.listen(configService.get<number>('PORT', 8080));
+  await app.listen(configService.get<number>('PORT', 8181));
 }
 
 void (async () => await bootstrap())();

@@ -37,7 +37,7 @@ COPY --from=dependency /usr/src/app/node_modules ./node_modules
 COPY --from=builder /usr/src/app/dist ./dist
 COPY --from=builder /usr/src/app/package.json ./package.json
 
-ENV PORT=8080
-EXPOSE 8080
+ENV PORT=8181
+EXPOSE 8181
 
 CMD ["npm", "run", "start:prod"]

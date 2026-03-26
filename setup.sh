@@ -165,11 +165,11 @@ case "$BUILD_CHOICE" in
     if [ "$RUN_API" = "y" ] || [ "$RUN_API" = "Y" ]; then
       docker compose up -d
       sleep 3
-      HEALTH=$(curl -s http://localhost:8080/voicepeak/health 2>/dev/null || true)
+      HEALTH=$(curl -s http://localhost:8181/voicepeak/health 2>/dev/null || true)
       if echo "$HEALTH" | grep -q "ok"; then
         success "APIサーバーが起動しました。"
-        info "Swagger UI: http://localhost:8080/api"
-        info "ヘルスチェック: http://localhost:8080/voicepeak/health"
+        info "Swagger UI: http://localhost:8181/api"
+        info "ヘルスチェック: http://localhost:8181/voicepeak/health"
       else
         warn "APIサーバーの起動を確認できませんでした。docker logs voicepeak-api を確認してください。"
       fi
