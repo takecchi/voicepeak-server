@@ -75,12 +75,13 @@ if [ "$NEED_DOWNLOAD" = true ] || [ ! -f "installer/Voicepeak/voicepeak" ]; then
   success "VOICEPEAKバイナリを確認しました。"
 
   # --- Step 4: アクティベーション ---
-  step "Step 4: ライセンスのアクティベーション"
+  step "Step 4: キャラクターのインストール"
   info "VNCクライアントのターミナルで以下を実行してください:"
   echo ""
   echo "  /opt/voicepeak-installer/Voicepeak/voicepeak"
   echo ""
-  info "GUIが開くのでアクティベーションコードを入力してください。"
+  info "GUIが開くのでキャラクターのインストールを行って下さい。"
+  info "※ またはアクティベーションコードを求められるだけの場合もあります。"
   wait_enter
 
   info "ナレーター一覧を確認しています..."
