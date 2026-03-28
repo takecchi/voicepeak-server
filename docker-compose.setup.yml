@@ -8,7 +8,6 @@ services:
       - "5901:5901"
     volumes:
       - ./setup:/opt/setup
-      - ./Voicepeak:/opt/voicepeak
     mac_address: ${MAC_ADDRESS}
     hostname: voicepeak-server
     shm_size: "1g"

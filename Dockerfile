@@ -31,8 +31,8 @@ RUN echo '#!/bin/sh\nstartxfce4 &' > /root/.vnc/xstartup \
 # machine-idを固定 (ライセンス認証の一貫性のため)
 RUN echo "voicepeak-server" > /etc/machine-id
 
-# VOICEPEAKバイナリ + ライセンス情報
-COPY Voicepeak /opt/voicepeak
+# VOICEPEAKインストール先
+RUN mkdir -p /opt/voicepeak
 
 # NestJSアプリのビルド
 COPY api/package.json /tmp/build/package.json

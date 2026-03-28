@@ -15,7 +15,7 @@ wait_enter() {
   read -rp "準備ができたら Enter を押してください..."
 }
 
-# --- Step 1: MACアドレスの生成 ---
+# --- Step 1: MACアドレスの確認 ---
 step "Step 1: MACアドレスの確認"
 
 if [ -f .env ] && grep -q "MAC_ADDRESS=" .env; then
@@ -27,106 +27,93 @@ else
   success "MACアドレスを生成しました: $MAC (.env に保存)"
 fi
 
-# --- Step 2: VOICEPEAKのインストール ---
-step "Step 2: VOICEPEAKの確認"
+# --- Step 2: ダウンローダーの確認 ---
+step "Step 2: ダウンローダーの確認"
 
-if [ -f "Voicepeak/voicepeak" ]; then
-  success "Voicepeak/voicepeak が見つかりました。インストールをスキップします。"
-  NEED_INSTALL=false
-else
-  warn "Voicepeak/voicepeak が見つかりません。"
-  NEED_INSTALL=true
+if ! ls setup/voicepeak-downloader-* 1>/dev/null 2>&1; then
+  echo ""
+  info "先に以下のページからダウンローダーを取得し、setup/ に配置してください:"
+  info "https://www.ah-soft.com/voice/setup/"
+  info "ファイル名: voicepeak-downloader-linux64"
+  wait_enter
 
-  # ダウンローダーの確認
   if ! ls setup/voicepeak-downloader-* 1>/dev/null 2>&1; then
-    echo ""
-    info "先に以下のページからダウンローダーを取得し、setup/ に配置してください:"
-    info "https://www.ah-soft.com/voice/setup/"
-    info "ファイル名: voicepeak-downloader-linux64"
-    wait_enter
-
-    if ! ls setup/voicepeak-downloader-* 1>/dev/null 2>&1; then
-      echo "ダウンローダーが見つかりません。中断します。"
-      exit 1
-    fi
-  fi
-  success "ダウンローダーを確認しました。"
-fi
-
-# --- Step 3: セットアップ用コンテナの起動 ---
-if [ "$NEED_INSTALL" = true ]; then
-  step "Step 3: セットアップ用コンテナの起動"
-
-  if docker ps --filter name=voicepeak-setup --format "{{.Names}}" | grep -q voicepeak-setup; then
-    success "voicepeak-setup コンテナは既に起動しています。"
-  else
-    info "セットアップ用コンテナを起動します (MAC: $MAC)..."
-    docker compose -f docker-compose.setup.yml up --build -d
-    sleep 3
-    success "起動しました。"
-  fi
-
-  # --- Step 4: ダウンロード ---
-  step "Step 4: VOICEPEAKのダウンロード"
-  info "VNCクライアントで以下に接続してください:"
-  info "  接続先: localhost:5901"
-  info "  パスワード: voicepeak"
-  echo ""
-  info "接続後、ターミナルで以下を実行してください:"
-  echo ""
-  echo "  /opt/setup/install.sh"
-  echo ""
-  info "※ 完了後は「フォルダを開く」ではなく、バツボタンを押して閉じてください。"
-  wait_enter
-
-  if [ ! -f "Voicepeak/voicepeak" ]; then
-    echo "Voicepeak/voicepeak が見つかりません。ダウンロードが完了していない可能性があります。"
+    echo "ダウンローダーが見つかりません。中断します。"
     exit 1
   fi
-  success "VOICEPEAKバイナリを確認しました。"
-
-  # --- Step 5: アクティベーション ---
-  step "Step 5: キャラクターのインストール・アクティベーション"
-  info "VNCクライアントのターミナルで以下を実行してください:"
-  echo ""
-  echo "  /opt/voicepeak/voicepeak"
-  echo ""
-  info "GUIが開くのでキャラクターのインストールを行ってください。"
-  warn "重要: 必ず /opt/voicepeak/voicepeak を実行してください"
-  wait_enter
-
-  info "ナレーター一覧を確認しています..."
-  NARRATORS=$(docker exec voicepeak-setup /opt/voicepeak/voicepeak --list-narrator 2>/dev/null || true)
-  if [ -z "$NARRATORS" ]; then
-    warn "ナレーターが見つかりません。アクティベーションが完了していない可能性があります。"
-    exit 1
-  fi
-  success "アクティベーション成功: $NARRATORS"
-
-  # セットアップ用コンテナを停止
-  info "セットアップ用コンテナを停止します..."
-  docker compose -f docker-compose.setup.yml down
-  success "停止しました。"
 fi
+success "ダウンローダーを確認しました。"
 
-# --- Step 6: イメージのタグ付け ---
-step "Step 6: voicepeak-api イメージのタグ付け"
+# --- Step 3: セットアップ用コンテナのビルド・起動 ---
+step "Step 3: セットアップ用コンテナのビルド・起動"
 
-SETUP_IMAGE=$(docker compose -f docker-compose.setup.yml images -q voicepeak-setup 2>/dev/null || true)
-if [ -z "$SETUP_IMAGE" ]; then
-  # compose images で取れない場合はイメージ名から探す
-  SETUP_IMAGE=$(docker images --format "{{.Repository}}" | grep "voicepeak.*setup" | head -1)
-fi
-
-if [ -n "$SETUP_IMAGE" ]; then
-  docker tag "$SETUP_IMAGE" voicepeak-api
-  success "セットアップイメージを voicepeak-api としてタグ付けしました。"
-  warn "重要: docker build で再ビルドしないでください。アクティベーションが無効になります。"
+if docker ps --filter name=voicepeak-setup --format "{{.Names}}" | grep -q voicepeak-setup; then
+  success "voicepeak-setup コンテナは既に起動しています。"
 else
-  warn "セットアップイメージが見つかりません。"
-  info "docker-compose.setup.yml でビルド済みのイメージが必要です。"
+  info "イメージをビルドしてコンテナを起動します (MAC: $MAC)..."
+  docker compose -f docker-compose.setup.yml up --build -d
+  sleep 3
+  success "起動しました。"
+fi
+
+# --- Step 4: VOICEPEAKのダウンロード・インストール・アクティベーション ---
+step "Step 4: VOICEPEAKのダウンロード・インストール・アクティベーション"
+
+info "VNCクライアントで以下に接続してください:"
+info "  接続先: localhost:5901"
+info "  パスワード: voicepeak"
+echo ""
+info "接続後、ターミナルで以下を順番に実行してください:"
+echo ""
+echo "  1. /opt/setup/install.sh"
+echo "     (ダウンローダーが起動します。指示に従ってインストールしてください)"
+echo ""
+echo "  2. /opt/voicepeak/voicepeak"
+echo "     (GUIが開くのでアクティベーション・キャラクターインストールを行ってください)"
+echo ""
+warn "※ install.sh 完了後は「フォルダを開く」ではなく、バツボタンを押して閉じてください"
+wait_enter
+
+info "ナレーター一覧を確認しています..."
+NARRATORS=$(docker exec voicepeak-setup /opt/voicepeak/voicepeak --list-narrator 2>/dev/null || true)
+if [ -z "$NARRATORS" ]; then
+  warn "ナレーターが見つかりません。アクティベーションが完了していない可能性があります。"
   exit 1
 fi
+success "アクティベーション成功: $NARRATORS"
+
+# --- Step 5: VOICEPEAKをコンテナから取り出し ---
+step "Step 5: VOICEPEAKファイルの取り出し"
+
+info "コンテナから /opt/voicepeak をホストにコピーしています..."
+rm -rf Voicepeak
+docker cp voicepeak-setup:/opt/voicepeak Voicepeak
+success "Voicepeak/ にコピーしました。"
+
+# セットアップ用コンテナを停止
+info "セットアップ用コンテナを停止します..."
+docker stop voicepeak-setup
+docker rm voicepeak-setup
+success "停止しました。"
+
+# --- Step 6: COPY 入りイメージのビルド ---
+step "Step 6: voicepeak-api イメージのビルド"
+
+info "Voicepeak/ を含むイメージをビルドしています..."
+
+# 一時的な Dockerfile を作成（COPY Voicepeak を追加）
+SETUP_IMAGE=$(docker images --format "{{.Repository}}" | grep "voicepeak.*setup" | head -1)
+cat > /tmp/Dockerfile.voicepeak-api <<EOF
+FROM ${SETUP_IMAGE}
+COPY Voicepeak /opt/voicepeak
+CMD ["npm", "run", "start:prod"]
+EOF
+
+DOCKER_BUILDKIT=0 docker build -f /tmp/Dockerfile.voicepeak-api -t voicepeak-api .
+rm /tmp/Dockerfile.voicepeak-api
+success "voicepeak-api イメージをビルドしました。"
+warn "重要: このイメージにはライセンス情報が含まれています。"
+warn "      docker rmi voicepeak-api を実行する前に必ずディアクティベートしてください。"
 
 # --- Step 7: 起動 ---
 step "Step 7: 起動"

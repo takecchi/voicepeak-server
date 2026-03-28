@@ -8,5 +8,5 @@ services:
     shm_size: "1g"
     mac_address: ${MAC_ADDRESS}
     hostname: voicepeak-server
-    volumes:
-      - ./Voicepeak:/opt/voicepeak
+    command: ["npm", "run", "start:prod"]
+    working_dir: /app
