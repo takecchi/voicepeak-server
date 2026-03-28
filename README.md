@@ -1,9 +1,11 @@
 # voicepeak-server
 
+> **⚠ 注意: `voicepeak-api` イメージは `docker build` で再ビルドしないでください。アクティベーションが無効になります。**
+
 > **⚠ 注意: コンテナを破棄する前に、必ずVNC（画面共有）でコンテナに接続し、VOICEPEAK の UI 上でアクティベーションコードの解除（ディアクティベーション）を行ってください。**
 > アクティベーションコードの認証回数には制限があり、解除せずにコンテナを破棄すると認証が停止される場合があります。
 
-VOICEPEAKをDocker上で動作させ、CLIまたはREST APIとして利用するためのプロジェクト。
+VOICEPEAKをDocker上で動作させ、REST APIとして利用するためのプロジェクト。
 
 ## 前提条件
 
@@ -19,99 +21,61 @@ VOICEPEAKをDocker上で動作させ、CLIまたはREST APIとして利用する
 ./setup.sh
 ```
 
-手動で行う場合:
+## セットアップの仕組み
 
-```bash
-# 1. VNC付きビルドコンテナを起動
-docker compose -f docker-compose.build.yml up --build
+1. `Dockerfile` からイメージをビルド（Ubuntu + VNC + Node.js + NestJS）
+2. セットアップ用コンテナを固定MACアドレスで起動
+3. VNC接続してVOICEPEAKのダウンロード・アクティベーション（`Voicepeak/` にボリュームマウント）
+4. ビルド済みイメージを `docker tag` で `voicepeak-api` として保存
+5. 本番は `voicepeak-api` イメージ + `Voicepeak/` ボリュームマウント + 同じ固定MACで起動
 
-# 2. VNCで localhost:5901 に接続 (パスワード: voicepeak)
-#    → setup.sh でダウンロード、voicepeak コマンドでアクティベーション (後述)
-
-# 3. ベースイメージをビルド
-docker build -f Dockerfile.build -t voicepeak-base .
-
-# 4. 用途に応じてイメージをビルド
-DOCKER_BUILDKIT=0 docker build -t voicepeak .             # CLI用
-DOCKER_BUILDKIT=0 docker build -f Dockerfile.api -t voicepeak-api .  # APIサーバー用
-
-# 5. 起動
-docker compose up  # APIサーバー (http://localhost:8181)
-```
+**重要:** アクティベーションはセットアップ時のイメージに紐づいています。同じ Dockerfile でも `docker build` し直すと別イメージになり、アクティベーションが無効になります。
 
 ## セットアップ詳細
 
-### 1. VOICEPEAKバイナリの準備
+### 1. VOICEPEAKダウンローダーの準備
 
 [AHS公式セットアップページ](https://www.ah-soft.com/voice/setup/) から
-`voicepeak-downloader-linux64` をダウンロードし、`installer/` に配置する。
+`voicepeak-downloader-linux64` をダウンロードし、`setup/` に配置する。
+
+### 2. セットアップ実行
 
 ```bash
-docker compose -f docker-compose.build.yml up --build
+./setup.sh
 ```
+
+スクリプトが以下を行います:
+- `.env` にMACアドレスを生成・保存
+- セットアップ用コンテナをビルド・起動
+- VNCでのダウンロード・アクティベーションを案内
+- ビルド済みイメージを `voicepeak-api` としてタグ付け
+
+### 3. 手動でのVNC操作
 
 VNCクライアントで `localhost:5901` (パスワード: `voicepeak`) に接続し、ターミナルから:
 
 ```bash
-/opt/voicepeak-installer/setup.sh
-```
+# ダウンローダー実行
+/opt/setup/install.sh
 
-ダウンローダーのGUIが起動するので指示に従う。完了後に自動で `installer/` にファイルが移動される。  
-※ 完了後は「フォルダを開く」ではなく、バツボタンを押して閉じること。
+# GUIでアクティベーション・キャラクターインストール
+/opt/voicepeak/voicepeak
 
-### 2. ライセンスのアクティベーション
-
-初回はVOICEPEAKのGUIでライセンスアクティベーションが必要。
-
-VNC付きコンテナが起動した状態で、VNCクライアントのターミナルから:
-
-```bash
-# GUIが起動するのでアクティベーションコードを入力
-/opt/voicepeak-installer/Voicepeak/voicepeak
-
-# アクティベーション完了後、ナレーター一覧で確認
-/opt/voicepeak-installer/Voicepeak/voicepeak --list-narrator
+# 確認
+/opt/voicepeak/voicepeak --list-narrator
 ```
 
 ナレーター一覧が表示されれば成功 (例: `Kasane Teto`)。
 
-### 3. Dockerイメージのビルド
-
-**2段階のビルドが必要** (1つのDockerfileでビルドすると大きなバイナリのCOPYに問題が発生するため):
+### 4. 起動
 
 ```bash
-# Step 1: ベースイメージ
-docker build -f Dockerfile.build -t voicepeak-base .
-
-# Step 2: 用途に応じてどちらかを選択
-DOCKER_BUILDKIT=0 docker build -t voicepeak .             # CLI用
-DOCKER_BUILDKIT=0 docker build -f Dockerfile.api -t voicepeak-api .  # APIサーバー用
-```
-
-APIサーバーはマルチステージビルドのため、NestJSのビルドもDockerfile内で行われる。ホスト側での事前ビルドは不要。
-
-### 4. 動作確認
-
-#### CLI
-
-```bash
-mkdir -p output
-docker run --rm --platform linux/amd64 \
-  -v $(pwd)/output:/output \
-  voicepeak -s "テスト" -o /output/test.wav
-```
-
-`output/test.wav` が生成されれば成功。
-
-#### APIサーバー
-
-```bash
-docker compose up
+docker compose up -d
 ```
 
 Swagger UI: http://localhost:8181/api
 
-別ターミナルで:
+## 動作確認
 
 ```bash
 # ヘルスチェック
@@ -149,36 +113,22 @@ curl -X POST http://localhost:8181/voicepeak/speech \
 | `speed` | number | No | 速度 (50-200) |
 | `pitch` | number | No | ピッチ (-300 to 300) |
 
-## CLI オプション
-
-| オプション | 説明 |
-|-----------|------|
-| `-s, --say TEXT` | 読み上げるテキスト (最大140文字) |
-| `-t, --text FILE` | テキストファイルから読み上げ |
-| `-o, --out FILE` | 出力WAVファイルパス |
-| `-n, --narrator NAME` | ナレーター指定 |
-| `-e, --emotion EXPR` | 感情指定 (例: `teto-overactive=50,teto-sweet=25`) |
-| `--speed VALUE` | 速度 (50-200) |
-| `--pitch VALUE` | ピッチ (-300 to 300) |
-| `--list-narrator` | ナレーター一覧 |
-| `--list-emotion NARRATOR` | 指定ナレーターの感情パラメータ一覧 |
-
 ## ファイル構成
 
 | ファイル | 用途 |
 |---------|------|
-| `Dockerfile.build` | ベースイメージ (Ubuntu 20.04 + 依存ライブラリ + VNC) |
-| `Dockerfile` | CLIランタイムイメージ (ベース + Voicepeakバイナリ) |
-| `Dockerfile.api` | APIサーバーイメージ (ベース + Voicepeak + NestJS) |
-| `docker-compose.build.yml` | VNC付きビルドコンテナ起動用 |
+| `Dockerfile` | ベースイメージ (Ubuntu 20.04 + VNC + Node.js + NestJS) |
+| `docker-compose.setup.yml` | セットアップ用コンテナ起動 |
 | `docker-compose.yml` | APIサーバー起動用 |
+| `setup.sh` | 対話形式セットアップスクリプト |
+| `.env` | MACアドレス (setup.sh が生成、.gitignore 対象) |
 | `api/` | NestJS APIサーバーのソースコード |
-| `installer/setup.sh` | ダウンローダー実行 + ファイル移動スクリプト |
-| `installer/` | Voicepeakバイナリ配置先 (.gitignore) |
-| `output/` | 音声出力先 (.gitignore) |
+| `setup/` | ダウンローダー + コンテナ内セットアップスクリプト |
+| `Voicepeak/` | VOICEPEAKアプリ本体 (.gitignore で中身を除外) |
 
 ## 備考
 
 - `iconv_open is not supported` という警告が出るが、動作に影響はない
 - VOICEPEAK CLIは1回の呼び出しで最大140文字。APIサーバーでは長文を自動分割して結合する
+- VOICEPEAK CLIは同時に1インスタンスしか実行できない。APIサーバーではキューイングで直列実行している
 - Apple Silicon Macではamd64エミュレーションで動作するため遅い。x86_64 Linuxサーバーでは高速

@@ -6,3 +6,7 @@ services:
       - "8181:8181"
     platform: linux/amd64
     shm_size: "1g"
+    mac_address: ${MAC_ADDRESS}
+    hostname: voicepeak-server
+    volumes:
+      - ./Voicepeak:/opt/voicepeak

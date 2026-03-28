@@ -38,6 +38,3 @@ lerna-debug.log*
 # .envファイルを全て無視
 .env*
 
-# .env と .env.test は追跡
-!.env
-!.env.test

@@ -1,0 +1,15 @@
+services:
+  voicepeak-setup:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: voicepeak-setup
+    ports:
+      - "5901:5901"
+    volumes:
+      - ./setup:/opt/setup
+      - ./Voicepeak:/opt/voicepeak
+    mac_address: ${MAC_ADDRESS}
+    hostname: voicepeak-server
+    shm_size: "1g"
+    command: /start-vnc.sh
