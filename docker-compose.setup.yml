@@ -8,6 +8,9 @@ services:
       - "5901:5901"
     volumes:
       - ./setup:/opt/setup
+      - ./cpuinfo.txt:/etc/cpuinfo.override:ro
+    environment:
+      - LD_PRELOAD=/usr/lib/cpuinfo_hook.so
     mac_address: ${MAC_ADDRESS}
     hostname: voicepeak-server
     shm_size: "1g"

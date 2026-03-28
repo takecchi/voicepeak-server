@@ -1,3 +1,5 @@
 *
 !.gitignore
 !install.sh
+!cpuinfo-hook
+!cpuinfo-hook/*

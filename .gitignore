@@ -38,3 +38,6 @@ lerna-debug.log*
 # .envファイルを全て無視
 .env*
 
+# デプロイ先のCPU情報 (環境固有)
+cpuinfo.txt
+Voicepeak

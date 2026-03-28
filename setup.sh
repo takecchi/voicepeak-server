@@ -27,8 +27,33 @@ else
   success "MACアドレスを生成しました: $MAC (.env に保存)"
 fi
 
-# --- Step 2: ダウンローダーの確認 ---
-step "Step 2: ダウンローダーの確認"
+# --- Step 2: デプロイ先の cpuinfo ---
+step "Step 2: デプロイ先の CPU 情報"
+
+if [ -f cpuinfo.txt ] && [ -s cpuinfo.txt ]; then
+  CPU_MODEL=$(grep "model name" cpuinfo.txt | head -1 | cut -d: -f2 | xargs)
+  success "cpuinfo.txt が見つかりました: $CPU_MODEL"
+else
+  info "デプロイ先の /proc/cpuinfo の内容が必要です。"
+  info "デプロイ先のサーバーで 'cat /proc/cpuinfo > cpuinfo.txt' を実行し、"
+  info "このディレクトリに配置してください。"
+  echo ""
+  info "ローカルでのみ使用する場合は、そのまま Enter を押してください。"
+  info "(ローカルの CPU 情報が使用されます。別環境へのデプロイはできません)"
+  echo ""
+  read -rp "Enter で自動生成 / cpuinfo.txt を配置済みなら Enter: "
+
+  if [ ! -f cpuinfo.txt ] || [ ! -s cpuinfo.txt ]; then
+    info "ローカルの CPU 情報を使用します..."
+    docker run --rm --platform linux/amd64 ubuntu:20.04 cat /proc/cpuinfo > cpuinfo.txt
+    warn "このセットアップはローカル環境でのみ動作します。"
+  fi
+  CPU_MODEL=$(grep "model name" cpuinfo.txt | head -1 | cut -d: -f2 | xargs)
+  success "cpuinfo.txt を確認しました: $CPU_MODEL"
+fi
+
+# --- Step 3: ダウンローダーの確認 ---
+step "Step 3: ダウンローダーの確認"
 
 if ! ls setup/voicepeak-downloader-* 1>/dev/null 2>&1; then
   echo ""
@@ -44,20 +69,31 @@ if ! ls setup/voicepeak-downloader-* 1>/dev/null 2>&1; then
 fi
 success "ダウンローダーを確認しました。"
 
-# --- Step 3: セットアップ用コンテナのビルド・起動 ---
-step "Step 3: セットアップ用コンテナのビルド・起動"
+# --- Step 4: セットアップ用コンテナのビルド・起動 ---
+step "Step 4: セットアップ用コンテナのビルド・起動"
 
 if docker ps --filter name=voicepeak-setup --format "{{.Names}}" | grep -q voicepeak-setup; then
   success "voicepeak-setup コンテナは既に起動しています。"
 else
   info "イメージをビルドしてコンテナを起動します (MAC: $MAC)..."
+  info "cpuinfo フックにより、コンテナ内の /proc/cpuinfo はデプロイ先の CPU 情報を返します。"
   docker compose -f docker-compose.setup.yml up --build -d
   sleep 3
   success "起動しました。"
 fi
 
-# --- Step 4: VOICEPEAKのダウンロード・インストール・アクティベーション ---
-step "Step 4: VOICEPEAKのダウンロード・インストール・アクティベーション"
+# cpuinfo フックの動作確認
+info "cpuinfo フックを確認しています..."
+CONTAINER_CPU=$(docker exec voicepeak-setup head -1 /proc/cpuinfo 2>/dev/null || true)
+if echo "$CONTAINER_CPU" | grep -q "processor"; then
+  CONTAINER_MODEL=$(docker exec voicepeak-setup grep "model name" /proc/cpuinfo | head -1 | cut -d: -f2 | xargs)
+  success "コンテナ内の CPU: $CONTAINER_MODEL"
+else
+  warn "cpuinfo フックが正常に動作していない可能性があります。"
+fi
+
+# --- Step 5: VOICEPEAKのダウンロード・インストール・アクティベーション ---
+step "Step 5: VOICEPEAKのダウンロード・インストール・アクティベーション"
 
 info "VNCクライアントで以下に接続してください:"
 info "  接続先: localhost:5901"
@@ -82,8 +118,8 @@ if [ -z "$NARRATORS" ]; then
 fi
 success "アクティベーション成功: $NARRATORS"
 
-# --- Step 5: VOICEPEAKをコンテナから取り出し ---
-step "Step 5: VOICEPEAKファイルの取り出し"
+# --- Step 6: VOICEPEAKをコンテナから取り出し ---
+step "Step 6: VOICEPEAKファイルの取り出し"
 
 info "コンテナから /opt/voicepeak をホストにコピーしています..."
 rm -rf Voicepeak
@@ -96,16 +132,17 @@ docker stop voicepeak-setup
 docker rm voicepeak-setup
 success "停止しました。"
 
-# --- Step 6: COPY 入りイメージのビルド ---
-step "Step 6: voicepeak-api イメージのビルド"
+# --- Step 7: COPY 入りイメージのビルド ---
+step "Step 7: voicepeak-api イメージのビルド"
 
 info "Voicepeak/ を含むイメージをビルドしています..."
 
-# 一時的な Dockerfile を作成（COPY Voicepeak を追加）
 SETUP_IMAGE=$(docker images --format "{{.Repository}}" | grep "voicepeak.*setup" | head -1)
 cat > /tmp/Dockerfile.voicepeak-api <<EOF
 FROM ${SETUP_IMAGE}
 COPY Voicepeak /opt/voicepeak
+COPY cpuinfo.txt /etc/cpuinfo.override
+ENV LD_PRELOAD=/usr/lib/cpuinfo_hook.so
 CMD ["npm", "run", "start:prod"]
 EOF
 
@@ -115,8 +152,8 @@ success "voicepeak-api イメージをビルドしました。"
 warn "重要: このイメージにはライセンス情報が含まれています。"
 warn "      docker rmi voicepeak-api を実行する前に必ずディアクティベートしてください。"
 
-# --- Step 7: 起動 ---
-step "Step 7: 起動"
+# --- Step 8: 起動 ---
+step "Step 8: 起動"
 
 info "APIサーバーを起動しますか？"
 read -rp "[y/N]: " RUN_API

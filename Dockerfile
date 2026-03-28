@@ -31,6 +31,14 @@ RUN echo '#!/bin/sh\nstartxfce4 &' > /root/.vnc/xstartup \
 # machine-idを固定 (ライセンス認証の一貫性のため)
 RUN echo "voicepeak-server" > /etc/machine-id
 
+# cpuinfo フック (デプロイ先と異なるCPUでもアクティベーションを維持するため)
+COPY setup/cpuinfo-hook/cpuinfo_hook.c /tmp/cpuinfo_hook.c
+RUN apt-get update && apt-get install -y --no-install-recommends gcc libc6-dev \
+    && gcc -shared -fPIC -o /usr/lib/cpuinfo_hook.so /tmp/cpuinfo_hook.c -ldl \
+    && rm /tmp/cpuinfo_hook.c \
+    && apt-get purge -y gcc libc6-dev && apt-get autoremove -y \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
 # VOICEPEAKインストール先
 RUN mkdir -p /opt/voicepeak
 
