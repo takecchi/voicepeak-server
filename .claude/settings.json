@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if echo \"$CLAUDE_TOOL_INPUT\" | grep -qE 'docker\\s+(rmi|image\\s+rm|system\\s+prune)'; then echo 'BLOCK: voicepeakのディアクティベートは済んでいますか？ユーザーに確認してください。' >&2; exit 2; fi"
+          }
+        ]
+      }
+    ]
+  }
+}
