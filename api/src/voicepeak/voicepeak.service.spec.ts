@@ -1,3 +1,4 @@
+import * as fs from 'fs/promises';
 import { VoicepeakService } from './voicepeak.service';
 import { VoicepeakCli } from './voicepeak-cli';
 
@@ -272,6 +273,58 @@ describe('VoicepeakService', () => {
       const result = service.concatenateWav([wav]);
       expect(result.length).toBe(144);
       expect(result.readUInt32LE(40)).toBe(100);
+    });
+  });
+
+  describe('getStatus', () => {
+    it('should return idle when no tasks are pending', () => {
+      const service = new VoicepeakService(createMockCli());
+      const status = service.getStatus();
+      expect(status).toEqual({ status: 'idle', queue_length: 0 });
+    });
+
+    it('should return busy with correct queue_length during synthesis', async () => {
+      let resolveTask!: () => void;
+      const blockingPromise = new Promise<{ stdout: string; stderr: string }>(
+        (resolve) => {
+          resolveTask = () => resolve({ stdout: '', stderr: '' });
+        },
+      );
+
+      // WAVヘッダ + ダミーデータのファイルを書き出す mock
+      const mockExec = jest.fn((args: string[]) => {
+        const outIndex = args.indexOf('-o');
+        if (outIndex >= 0) {
+          const outFile = args[outIndex + 1];
+          const wavBuf = Buffer.alloc(44 + 10);
+          wavBuf.write('RIFF', 0);
+          wavBuf.writeUInt32LE(46, 4);
+          wavBuf.write('WAVE', 8);
+          wavBuf.write('fmt ', 12);
+          wavBuf.writeUInt32LE(16, 16);
+          wavBuf.write('data', 36);
+          wavBuf.writeUInt32LE(10, 40);
+          return blockingPromise.then(async (result) => {
+            await fs.writeFile(outFile, wavBuf);
+            return result;
+          });
+        }
+        return blockingPromise;
+      });
+      const service = new VoicepeakService(
+        createMockCli({ exec: mockExec as VoicepeakCli['exec'] }),
+      );
+
+      const synthesizePromise = service.synthesize({ text: 'テスト' });
+
+      // enqueue されたので busy になる
+      expect(service.getStatus()).toEqual({ status: 'busy', queue_length: 1 });
+
+      resolveTask();
+      await synthesizePromise;
+
+      // 完了後は idle に戻る
+      expect(service.getStatus()).toEqual({ status: 'idle', queue_length: 0 });
     });
   });
 });

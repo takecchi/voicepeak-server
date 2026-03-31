@@ -14,6 +14,7 @@ import { SynthesizeSpeechRequest } from './dto/synthesize-speech.dto';
 import { NarratorList } from './dto/narrator-list.dto';
 import { EmotionList } from './dto/emotion-list.dto';
 import { Health } from './dto/health.dto';
+import { WorkerStatus } from './dto/status.dto';
 
 @ApiTags('voicepeak')
 @Controller('voicepeak')
@@ -25,6 +26,13 @@ export class VoicepeakController {
   @ApiOkResponse({ type: Health })
   health(): Health {
     return { status: 'ok' };
+  }
+
+  @Get('status')
+  @ApiOperation({ operationId: 'getStatus', summary: 'ワーカーのステータスを取得' })
+  @ApiOkResponse({ type: WorkerStatus })
+  status(): WorkerStatus {
+    return this.voicepeakService.getStatus();
   }
 
   @Get('narrators')

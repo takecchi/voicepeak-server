@@ -3,6 +3,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
 import { VoicepeakCli } from './voicepeak-cli';
+import { WorkerStatus } from './dto/status.dto';
 
 const MAX_TEXT_LENGTH = 140;
 
@@ -18,8 +19,16 @@ export interface SpeechOptions {
 export class VoicepeakService {
   private readonly logger = new Logger(VoicepeakService.name);
   private queue: Promise<void> = Promise.resolve();
+  private pendingCount = 0;
 
   constructor(private readonly cli: VoicepeakCli) {}
+
+  getStatus(): WorkerStatus {
+    return {
+      status: this.pendingCount > 0 ? 'busy' : 'idle',
+      queue_length: this.pendingCount,
+    };
+  }
 
   async listNarrators(): Promise<string[]> {
     const { stdout } = await this.cli.exec(['--list-narrator']);
@@ -43,8 +52,11 @@ export class VoicepeakService {
   }
 
   private enqueue<T>(fn: () => Promise<T>): Promise<T> {
+    this.pendingCount++;
     return new Promise<T>((resolve, reject) => {
-      this.queue = this.queue.then(() => fn().then(resolve, reject));
+      this.queue = this.queue.then(() =>
+        fn().then(resolve, reject).finally(() => this.pendingCount--),
+      );
     });
   }
 

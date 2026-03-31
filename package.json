@@ -7,7 +7,8 @@
   "author": "",
   "license": "ISC",
   "workspaces": [
-    "api"
+    "api",
+    "gateway"
   ],
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
